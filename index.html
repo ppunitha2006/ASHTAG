@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASHTAG – Live Air Toxin Monitor</title>
+<style>
+:root{--bg:#0e1217;--card:#1a222c;--bd:#2a3440;--tx:#f2ede4;--mut:#9aa4b0;--amb:#e8a33d;--teal:#4fb8a8;--red:#e5594c;--blue:#7fa3d6;--ok:#4fb8a8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f2f4f7;--card:#fff;--bd:#d8dee5;--tx:#18202a;--mut:#5d6877;--amb:#b87400;--teal:#0f8f7d;--red:#c4372b;--blue:#3a68b5;--ok:#0f8f7d}}
+:root[data-theme="dark"]{--bg:#0e1217;--card:#1a222c;--bd:#2a3440;--tx:#f2ede4;--mut:#9aa4b0;--amb:#e8a33d;--teal:#4fb8a8;--red:#e5594c;--blue:#7fa3d6;--ok:#4fb8a8}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:12px;max-width:1000px;margin-inline:auto}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.logo{font:700 24px "Times New Roman",serif;letter-spacing:.04em}.logo b{color:var(--amb)}
+.pill{border:1px solid var(--bd);border-radius:99px;padding:3px 10px;font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.sp{flex:1}
+.banner{border-radius:10px;padding:9px 12px;margin-bottom:10px;font-weight:600;background:color-mix(in srgb,var(--ok) 18%,var(--card));border:1px solid var(--ok)}
+.banner.bad{background:color-mix(in srgb,var(--red) 22%,var(--card));border-color:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.65}}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-bottom:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;min-width:0}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin-bottom:6px}
+.gauge{text-align:center}.gauge svg{width:100%;max-width:240px}
+.val{font-size:34px;font-weight:700;line-height:1;margin-top:-34px}
+.unit{font-size:13px;color:var(--mut)}
+.badge{display:inline-block;margin-top:8px;padding:2px 12px;border-radius:99px;color:#fff;font-weight:700;font-size:12px}
+canvas{width:100%;display:block}
+.bar{height:8px;border-radius:4px;background:var(--bd);overflow:hidden;margin:2px 0 8px}.bar i{display:block;height:100%;background:var(--teal);width:0;transition:width .4s}
+.row{display:flex;justify-content:space-between;font-size:13px;gap:8px}
+button{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:9px;padding:8px 11px;font:inherit;cursor:pointer}
+button.on{background:var(--amb);border-color:var(--amb);color:#111;font-weight:700}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+#feed,#log{font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;height:150px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+#feed div{color:var(--mut)}#feed .al,#log .al{color:var(--red)}
+.ring{display:flex;align-items:center;gap:14px}.ring svg{width:110px;flex:none}
+.io{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}.io span{font-size:12px;border:1px solid var(--bd);border-radius:6px;padding:2px 8px;color:var(--mut)}.io span.a{color:#111;background:var(--amb);border-color:var(--amb)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ASH<b>TAG</b></div>
+  <div class="pill"><span class="dot"></span>ashtag-01 · Chennai Lab</div>
+  <div class="pill">Wi-Fi <span id="rssi">-52</span> dBm</div>
+  <div class="pill">MQTT <span class="dot"></span> live</div>
+  <div class="pill">Battery <span id="bat">100</span>%</div>
+  <div class="sp"></div>
+  <div class="pill" id="clock">00:00:00</div>
+</header>
+
+<div id="banner" class="banner">All clear. Air is within safe limits.</div>
+
+<div class="grid">
+  <div class="card gauge"><div class="lbl">Benzene</div>
+    <svg viewBox="0 0 180 100"><path d="M10 90A80 80 0 0 1 170 90" fill="none" stroke="var(--bd)" stroke-width="14" stroke-linecap="round"/><path id="gb" d="M10 90A80 80 0 0 1 170 90" fill="none" stroke="var(--teal)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg>
+    <div class="val"><span id="vb">0.0</span> <span class="unit">ppb</span></div>
+    <div class="unit" style="margin-top:6px">limit <span id="lb">5</span> ppb · updates each cycle</div><span id="sb" class="badge">SAFE</span></div>
+  <div class="card gauge"><div class="lbl">Formaldehyde</div>
+    <svg viewBox="0 0 180 100"><path d="M10 90A80 80 0 0 1 170 90" fill="none" stroke="var(--bd)" stroke-width="14" stroke-linecap="round"/><path id="gf" d="M10 90A80 80 0 0 1 170 90" fill="none" stroke="var(--teal)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg>
+    <div class="val"><span id="vf">0</span> <span class="unit">ppb</span></div>
+    <div class="unit" style="margin-top:6px">limit <span id="lf">80</span> ppb · continuous</div><span id="sf" class="badge">SAFE</span></div>
+  <div class="card"><div class="lbl">Preconcentrator cycle</div>
+    <div class="ring">
+      <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="var(--bd)" stroke-width="8"/><circle id="rg" cx="50" cy="50" r="44" fill="none" stroke="var(--teal)" stroke-width="8" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5" transform="rotate(-90 50 50)"/><text id="rt" x="50" y="56" text-anchor="middle" font-size="22" font-weight="700" fill="var(--tx)">60</text></svg>
+      <div><div style="font-size:20px;font-weight:700" id="ph">Sampling</div><div class="unit" id="pd">Pump traps trace gases in the adsorber</div>
+      <div class="io"><span id="ip">Pump</span><span id="ih">Heater</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card" style="grid-column:1/-1"><div class="lbl">Gas level as % of alert limit · last 2 minutes</div>
+    <canvas id="cv" width="900" height="200" style="height:190px"></canvas>
+    <div class="unit"><span style="color:var(--blue)">● Benzene</span> &nbsp; <span style="color:var(--amb)">● Formaldehyde</span> &nbsp; red line = alert limit (100%)</div></div>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="lbl">Raw sensor array</div>
+    <div class="row"><span>MOX (metal oxide)</span><span id="r0">0</span></div><canvas id="s0" width="300" height="34" style="height:34px"></canvas>
+    <div class="row"><span>Optical (PID / NDIR)</span><span id="r1">0</span></div><canvas id="s1" width="300" height="34" style="height:34px"></canvas>
+    <div class="row"><span>Electrochemical</span><span id="r2">0</span></div><canvas id="s2" width="300" height="34" style="height:34px"></canvas></div>
+  <div class="card"><div class="lbl">Edge AI on ESP32</div>
+    <div class="row"><span>Clean air</span><span id="c0">0%</span></div><div class="bar"><i id="b0"></i></div>
+    <div class="row"><span>Benzene-rich</span><span id="c1">0%</span></div><div class="bar"><i id="b1" style="background:var(--blue)"></i></div>
+    <div class="row"><span>Formaldehyde-rich</span><span id="c2">0%</span></div><div class="bar"><i id="b2" style="background:var(--amb)"></i></div>
+    <div class="row"><span>Baseline drift (mV)</span><span id="dr">0.0</span></div>
+    <div class="row"><span>Drift compensation</span><span id="dc" style="color:var(--teal)">ON</span></div></div>
+  <div class="card"><div class="lbl">Simulate</div>
+    <div class="btns" id="scn"><button data-s="clean" class="on">Clean air</button><button data-s="smoke">Smoke</button><button data-s="industrial">Industrial leak</button><button data-s="lab">Lab spill</button></div>
+    <div class="btns"><button id="bdc">Drift comp: ON</button><button id="bsp">Speed: 4×</button></div>
+    <div class="unit">Speed shortens the 95-second cycle so you can watch it work.</div></div>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="lbl">Incoming MQTT messages</div><div id="feed"></div></div>
+  <div class="card"><div class="lbl">Alert log (push to cloud)</div><div id="log">No alerts yet.</div></div>
+</div>
+
+<script>
+const LIM={b:5,f:80}, DUR=[60,15,20], NAMES=["Sampling","Desorbing","Cooling & purge"];
+const DESC=["Pump traps trace gases in the adsorber","Heater releases trapped gas as a sharp pulse","Fresh air purge, baseline reset"];
+const COL=["--teal","--amb","--blue"];
+const SCN={clean:[0.4,4],smoke:[4.2,68],industrial:[11,150],lab:[1.5,115]};
+const S=[[0.8,0.5],[0.3,0.12],[0.05,0.6]];
+const st={scn:"clean",comp:true,speed:4,ph:0,pt:0,tb:0.4,tf:4,b:0,f:4,bShown:0,fShown:0,t:0,drift:[0,0,0],err:0,hist:[],raw:[[],[],[]],alB:false,alF:false,bat:100,fe:0,lastFeed:0,lastHist:0};
+const $=id=>document.getElementById(id), css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const g=()=>(Math.random()+Math.random()+Math.random()-1.5)*0.8;
+
+function lvl(c,l){return c>=l?2:c>=l*.5?1:0}
+function badge(el,l){el.textContent=["SAFE","WARNING","ALERT"][l];el.style.background=["var(--ok)","var(--amb)","var(--red)"][l]}
+function arc(id,c,l){const fr=Math.min(1,c/(l*1.5));const p=$(id);p.style.strokeDashoffset=251.3*(1-fr);p.style.stroke=css(["--teal","--amb","--red"][lvl(c,l)])}
+function addLine(box,txt,cls){const d=document.createElement("div");d.textContent=txt;if(cls)d.className=cls;box.prepend(d);while(box.children.length>40)box.lastChild.remove()}
+
+function alertCheck(k,c,name){
+  const al=k==="b"?"alB":"alF", l=LIM[k];
+  if(!st[al]&&c>=l){st[al]=true;
+    if($("log").textContent==="No alerts yet.")$("log").textContent="";
+    addLine($("log"),new Date().toLocaleTimeString()+"  "+name+" "+c.toFixed(1)+" ppb > "+l+" ppb  → push sent","al");
+    addLine($("feed"),'ashtag/ashtag-01/alert {"gas":"'+name.toLowerCase()+'","ppb":'+c.toFixed(1)+',"limit":'+l+'}',"al");
+    if(navigator.vibrate)try{navigator.vibrate(200)}catch(e){}}
+  if(st[al]&&c<l*.8)st[al]=false;
+}
+
+function step(dt){
+  st.t+=dt; st.pt+=dt;
+  if(st.pt>=DUR[st.ph]){
+    if(st.ph===1){ // end of desorb: benzene result published
+      const noise=0.12*g();
+      st.b=Math.max(0,st.tb+noise+st.err*(st.comp?0.04:1));
+    }
+    st.ph=(st.ph+1)%3; st.pt=0;
+  }
+  const k=1-Math.exp(-dt/6);
+  st.tb+=(SCN[st.scn][0]-st.tb)*k+g()*0.02*dt; st.tf+=(SCN[st.scn][1]-st.tf)*k+g()*0.4*dt;
+  st.tb=Math.max(0,st.tb); st.tf=Math.max(0,st.tf);
+  st.err+=0.02*dt;                                     // uncorrected drift builds up
+  st.drift=st.drift.map((d,i)=>d+0.004*(i+1)*dt);
+  st.f=Math.max(0,0.75*st.f+0.25*(st.tf+g()*1.2));    // ZE08 continuous
+  st.fe=st.f+(st.comp?0:st.err*8);
+  st.bat=Math.max(5,st.bat-0.004*dt);
+  // raw sensors
+  const pulse=st.ph===1?10*Math.pow(Math.sin(Math.PI*st.pt/DUR[1]),2):0.35;
+  for(let i=0;i<3;i++){
+    const v=S[i][0]*st.tb*pulse+S[i][1]*st.tf*(st.ph===1?pulse*0.3:0.35)+st.drift[i]*(st.comp?0.1:1)+g()*0.05;
+    st.raw[i].push(v);if(st.raw[i].length>90)st.raw[i].shift();
+  }
+}
+
+function spark(i){
+  const c=$("s"+i),x=c.getContext("2d"),w=c.width,h=c.height,d=st.raw[i];x.clearRect(0,0,w,h);
+  if(d.length<2)return;const mx=Math.max(1,...d);x.strokeStyle=css(i==1?"--amb":i==2?"--blue":"--teal");x.lineWidth=2;x.beginPath();
+  d.forEach((v,j)=>{const X=j/89*w,Y=h-3-(v/mx)*(h-6);j?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();$("r"+i).textContent=d[d.length-1].toFixed(2)+" V";
+}
+
+function chart(){
+  const c=$("cv"),x=c.getContext("2d"),w=c.width,h=c.height;x.clearRect(0,0,w,h);
+  const mx=Math.max(160,...st.hist.map(p=>Math.max(p.b,p.f)));const Y=v=>h-10-(v/mx)*(h-24);
+  x.strokeStyle=css("--bd");x.lineWidth=1;for(let v=0;v<=mx;v+=50){x.beginPath();x.moveTo(0,Y(v));x.lineTo(w,Y(v));x.stroke()}
+  x.setLineDash([6,5]);x.strokeStyle=css("--red");x.beginPath();x.moveTo(0,Y(100));x.lineTo(w,Y(100));x.stroke();x.setLineDash([]);
+  [["b","--blue"],["f","--amb"]].forEach(([k,col])=>{x.strokeStyle=css(col);x.lineWidth=2.5;x.beginPath();
+    st.hist.forEach((p,i)=>{const X=i/119*w;i?x.lineTo(X,Y(p[k])):x.moveTo(X,Y(p[k]))});x.stroke()});
+}
+
+function render(){
+  st.bShown+=(st.b-st.bShown)*0.15; st.fShown+=(st.fe-st.fShown)*0.25;
+  $("vb").textContent=st.bShown.toFixed(1); $("vf").textContent=Math.round(st.fShown);
+  arc("gb",st.bShown,LIM.b); arc("gf",st.fShown,LIM.f);
+  const lb=alertCheck("b",st.b,"Benzene")||lvl(st.bShown,LIM.b), lf=lvl(st.fShown,LIM.f);
+  alertCheck("f",st.fe,"Formaldehyde");
+  badge($("sb"),lvl(st.bShown,LIM.b)); badge($("sf"),lf);
+  const bad=st.alB||st.alF, bn=$("banner");
+  bn.className="banner"+(bad?" bad":"");
+  bn.textContent=bad?"ALERT: "+[st.alB&&"Benzene",st.alF&&"Formaldehyde"].filter(Boolean).join(" and ")+" above safe limit. Ventilate and evacuate if needed.":"All clear. Air is within safe limits.";
+  // cycle ring
+  const fr=st.pt/DUR[st.ph], rg=$("rg");
+  rg.style.strokeDashoffset=276.5*(1-fr); rg.style.stroke=css(COL[st.ph]);
+  $("rt").textContent=Math.ceil(DUR[st.ph]-st.pt); $("ph").textContent=NAMES[st.ph]; $("pd").textContent=DESC[st.ph];
+  $("ip").className=st.ph!==1?"a":""; $("ih").className=st.ph===1?"a":"";
+  // AI classification
+  const rb=st.bShown/LIM.b, rf=st.fShown/LIM.f;
+  let c0=Math.max(0.02,1-Math.max(rb,rf)*1.4), c1=rb*rb+0.01, c2=rf*rf+0.01; const sum=c0+c1+c2;
+  [c0,c1,c2].forEach((v,i)=>{const p=Math.round(v/sum*100);$("c"+i).textContent=p+"%";$("b"+i).style.width=p+"%"});
+  $("dr").textContent=(st.drift[0]*(st.comp?0.1:1)*1000).toFixed(1);
+  $("rssi").textContent=-52-Math.round(Math.abs(g())*4); $("bat").textContent=Math.round(st.bat);
+  $("clock").textContent=new Date().toLocaleTimeString();
+  [0,1,2].forEach(spark);
+  if(st.t-st.lastHist>=1){st.lastHist=st.t;st.hist.push({b:st.bShown/LIM.b*100,f:st.fShown/LIM.f*100});if(st.hist.length>120)st.hist.shift();}
+  chart();
+  if(st.t-st.lastFeed>=3){st.lastFeed=st.t;
+    addLine($("feed"),'ashtag/ashtag-01/telemetry {"benzene_ppb":'+st.b.toFixed(1)+',"hcho_ppb":'+Math.round(st.fe)+',"phase":"'+["sample","desorb","cool"][st.ph]+'","fault":false}');}
+}
+
+// controls
+document.querySelectorAll("#scn button").forEach(b=>b.onclick=()=>{st.scn=b.dataset.s;document.querySelectorAll("#scn button").forEach(x=>x.classList.toggle("on",x===b))});
+$("bdc").onclick=e=>{st.comp=!st.comp;e.target.textContent="Drift comp: "+(st.comp?"ON":"OFF");$("dc").textContent=st.comp?"ON":"OFF";$("dc").style.color=st.comp?"var(--teal)":"var(--red)"};
+$("bsp").onclick=e=>{st.speed=st.speed===1?4:st.speed===4?10:1;e.target.textContent="Speed: "+st.speed+"×"};
+$("lb").textContent=LIM.b;$("lf").textContent=LIM.f;
+
+// warm start so the page never looks empty
+for(let i=0;i<400;i++){step(0.25);if(i%4==0){st.hist.push({b:0,f:5})}}
+st.hist=st.hist.slice(-120);
+let last=performance.now();
+setInterval(()=>{const n=performance.now(),dt=Math.min(0.5,(n-last)/1000)*st.speed;last=n;
+  const sub=Math.max(1,Math.ceil(dt/0.25));for(let i=0;i<sub;i++)step(dt/sub);render()},100);
+</script>
+</body>
+</html>
